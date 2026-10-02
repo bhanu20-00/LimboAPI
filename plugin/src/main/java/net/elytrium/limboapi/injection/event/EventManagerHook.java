@@ -56,8 +56,8 @@ public class EventManagerHook {
   private final LimboAPI plugin;
   private final VelocityEventManager eventManager;
 
-  private Object handlerRegistrations;
-  private boolean hasHandlerRegistration;
+  private static Object handlerRegistrations;
+  private static boolean hasHandlerRegistration;
 
   public EventManagerHook(LimboAPI plugin, VelocityEventManager eventManager) {
     this.plugin = plugin;
@@ -82,9 +82,9 @@ public class EventManagerHook {
         }
       });
 
-      if (this.hasHandlerRegistration) {
+      if (hasHandlerRegistration) {
         try {
-          FIRE_METHOD.invoke(this.eventManager, fireFuture, event, 0, false, this.handlerRegistrations);
+          FIRE_METHOD.invoke(this.eventManager, fireFuture, event, 0, false, handlerRegistrations);
         } catch (Throwable e) {
           fireFuture.complete(event);
           throw new ReflectionException(e);
@@ -136,9 +136,12 @@ public class EventManagerHook {
     List preEvents = new ArrayList<>();
     List newHandlers = new ArrayList<>(disabledHandlers);
 
-    if (this.handlerRegistrations != null) {
-      for (int i = 0; i < Array.getLength(this.handlerRegistrations); ++i) {
-        preEvents.add(Array.get(this.handlerRegistrations, i));
+    if (handlerRegistrations != null) {
+      for (int i = 0; i < Array.getLength(handlerRegistrations); ++i) {
+        Object existing = Array.get(handlerRegistrations, i);
+        if (!preEvents.contains(existing)) {
+          preEvents.add(existing);
+        }
       }
     }
 
@@ -146,9 +149,18 @@ public class EventManagerHook {
       for (Object handler : disabledHandlers) {
         PluginContainer pluginContainer = (PluginContainer) PLUGIN_FIELD.invoke(handler);
         String id = pluginContainer.getDescription().getId();
-        if (Settings.IMP.MAIN.PRE_LIMBO_PROFILE_REQUEST_PLUGINS.contains(id)) {
+        boolean matches = false;
+        for (String target : Settings.IMP.MAIN.PRE_LIMBO_PROFILE_REQUEST_PLUGINS) {
+          if (target.equalsIgnoreCase(id)) {
+            matches = true;
+            break;
+          }
+        }
+        if (matches) {
           LimboAPI.getLogger().info("Hooking all GameProfileRequestEvent events from {} ", id);
-          preEvents.add(handler);
+          if (!preEvents.contains(handler)) {
+            preEvents.add(handler);
+          }
           newHandlers.remove(handler);
         }
       }
@@ -157,13 +169,13 @@ public class EventManagerHook {
     }
 
     handlersMap.replaceValues(GameProfileRequestEvent.class, newHandlers);
-    this.handlerRegistrations = Array.newInstance(HANDLER_REGISTRATION_CLASS, preEvents.size());
+    handlerRegistrations = Array.newInstance(HANDLER_REGISTRATION_CLASS, preEvents.size());
 
     for (int i = 0; i < preEvents.size(); ++i) {
-      Array.set(this.handlerRegistrations, i, preEvents.get(i));
+      Array.set(handlerRegistrations, i, preEvents.get(i));
     }
 
-    this.hasHandlerRegistration = !preEvents.isEmpty();
+    hasHandlerRegistration = !preEvents.isEmpty();
   }
 
   static {
