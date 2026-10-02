@@ -13,8 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    env:
-      MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4.2.2
@@ -32,20 +30,13 @@ jobs:
           key: minecraft-${{ hashFiles('gradle.properties') }}
       - name: Build LimboAPI
         run: ./gradlew build
-      - name: Upload LimboAPI
+      - name: Upload LimboAPI Artifact
         uses: actions/upload-artifact@v4.6.2
         with:
           name: LimboAPI
           path: "*/build/libs/*.jar"
-      - uses: dev-drprasad/delete-tag-and-release@v0.2.1
-        if: ${{ github.event_name == 'push' }}
-        continue-on-error: true
-        with:
-          delete_release: true
-          tag_name: dev-build
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Find git version
+        if: ${{ github.event_name == 'push' }}
         id: git-version
         run: echo "id=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
       - name: Find correct JAR
@@ -54,28 +45,16 @@ jobs:
         run: |
           output="$(find plugin/build/libs/ ! -name "*-javadoc.jar" ! -name "*-sources.jar" -type f -printf "%f\n")"
           echo "jarname=$output" >> $GITHUB_OUTPUT
-      - name: Release the build
+      - name: Publish to GitHub Release
         if: ${{ github.event_name == 'push' }}
         uses: ncipollo/release-action@v1
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           artifacts: plugin/build/libs/${{ steps.find-jar.outputs.jarname }}
           body: ${{ join(github.event.commits.*.message, '\n') }}
           prerelease: true
           name: Dev-build ${{ steps.git-version.outputs.id }}
           tag: dev-build
           allowUpdates: true
-      - name: Upload to Modrinth
-        if: ${{ github.event_name == 'push' && env.MODRINTH_TOKEN != '' }}
-        continue-on-error: true
-        uses: RubixDev/modrinth-upload@v1.0.0
-        with:
-          token: ${{ secrets.MODRINTH_TOKEN }}
-          file_path: plugin/build/libs/${{ steps.find-jar.outputs.jarname }}
-          name: Dev-build ${{ steps.git-version.outputs.id }}
-          version: ${{ steps.git-version.outputs.id }}
-          changelog: ${{ join(github.event.commits.*.message, '\n') }}
-          game_versions: 1.7.2
-          release_type: beta
-          loaders: velocity
-          featured: false
-          project_id: TZOteSf2
+          removeArtifacts: true
+          replacesArtifacts: true
