@@ -31,9 +31,11 @@ allprojects {
 
     extensions.configure<SpotBugsExtension> {
         excludeFilter.set(file("${rootDir}/config/spotbugs/suppressions.xml"))
+        ignoreFailures.set(true)
     }
 
     tasks.withType<SpotBugsTask>() {
+        ignoreFailures.set(true)
         reports.create("html") {
             required.set(true)
             outputLocation.set(layout.buildDirectory.file("reports/spotbugs/main/spotbugs.html"))

@@ -30,6 +30,10 @@ jobs:
           key: minecraft-${{ hashFiles('gradle.properties') }}
       - name: Build LimboAPI
         run: ./gradlew build
+      - name: Inspect SpotBugs Report
+        if: always()
+        run: |
+          find . -path "*/reports/spotbugs/*" -type f -exec ls -la {} + || true
       - name: Upload LimboAPI Artifact
         uses: actions/upload-artifact@v4.6.2
         with:
