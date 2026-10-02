@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4.2.2
@@ -37,6 +39,7 @@ jobs:
           path: "*/build/libs/*.jar"
       - uses: dev-drprasad/delete-tag-and-release@v0.2.1
         if: ${{ github.event_name == 'push' }}
+        continue-on-error: true
         with:
           delete_release: true
           tag_name: dev-build
@@ -60,8 +63,10 @@ jobs:
           prerelease: true
           name: Dev-build ${{ steps.git-version.outputs.id }}
           tag: dev-build
+          allowUpdates: true
       - name: Upload to Modrinth
-        if: ${{ github.event_name == 'push' && secrets.MODRINTH_TOKEN != '' }}
+        if: ${{ github.event_name == 'push' && env.MODRINTH_TOKEN != '' }}
+        continue-on-error: true
         uses: RubixDev/modrinth-upload@v1.0.0
         with:
           token: ${{ secrets.MODRINTH_TOKEN }}
