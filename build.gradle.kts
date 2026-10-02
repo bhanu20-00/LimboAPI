@@ -35,7 +35,6 @@ allprojects {
     }
 
     tasks.withType<SpotBugsTask>() {
-        ignoreFailures.set(true)
         reports.create("html") {
             required.set(true)
             outputLocation.set(layout.buildDirectory.file("reports/spotbugs/main/spotbugs.html"))
