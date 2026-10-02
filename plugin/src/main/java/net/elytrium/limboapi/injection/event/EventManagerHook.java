@@ -37,8 +37,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import net.elytrium.commons.utils.reflection.ReflectionException;
 import net.elytrium.limboapi.LimboAPI;
@@ -53,6 +55,7 @@ public class EventManagerHook {
   private static final MethodHandle FIRE_METHOD;
   private static final MethodHandle FUTURE_FIELD;
 
+  private static final Set<String> PROCEEDED_PROFILES = ConcurrentHashMap.newKeySet();
   private final Set<GameProfile> proceededProfiles = new HashSet<>();
   private final LimboAPI plugin;
   private final VelocityEventManager eventManager;
@@ -68,7 +71,16 @@ public class EventManagerHook {
   @Subscribe(order = PostOrder.FIRST)
   public EventTask onGameProfileRequest(GameProfileRequestEvent event) {
     GameProfile originalProfile = event.getGameProfile();
-    if (this.proceededProfiles.remove(originalProfile)) {
+    boolean proceeded = this.proceededProfiles.remove(originalProfile);
+    if (originalProfile != null) {
+      if (originalProfile.getName() != null && PROCEEDED_PROFILES.remove(originalProfile.getName().toLowerCase(Locale.ROOT))) {
+        proceeded = true;
+      }
+      if (originalProfile.getId() != null && PROCEEDED_PROFILES.remove(originalProfile.getId().toString())) {
+        proceeded = true;
+      }
+    }
+    if (proceeded) {
       return null;
     } else {
       CompletableFuture<GameProfileRequestEvent> fireFuture = new CompletableFuture<>();
@@ -128,6 +140,14 @@ public class EventManagerHook {
 
   public void proceedProfile(GameProfile profile) {
     this.proceededProfiles.add(profile);
+    if (profile != null) {
+      if (profile.getName() != null) {
+        PROCEEDED_PROFILES.add(profile.getName().toLowerCase(Locale.ROOT));
+      }
+      if (profile.getId() != null) {
+        PROCEEDED_PROFILES.add(profile.getId().toString());
+      }
+    }
   }
 
   @SuppressWarnings("rawtypes")
@@ -178,6 +198,20 @@ public class EventManagerHook {
     }
 
     hasHandlerRegistration = !preEvents.isEmpty();
+
+    try {
+      Field cacheField = VelocityEventManager.class.getDeclaredField("handlersCache");
+      cacheField.setAccessible(true);
+      Object cache = cacheField.get(this.eventManager);
+      if (cache != null) {
+        Method invalidateAll = cache.getClass().getMethod("invalidateAll");
+        invalidateAll.invoke(cache);
+      }
+    } catch (NoSuchFieldException ignored) {
+      // handlersCache may not exist in all Velocity versions
+    } catch (Throwable e) {
+      LimboAPI.getLogger().warn("Failed to invalidate Velocity event handlers cache", e);
+    }
   }
 
   static {
