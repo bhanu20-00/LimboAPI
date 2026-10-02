@@ -23,6 +23,7 @@ import com.velocitypowered.api.event.PostOrder;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.player.GameProfileRequestEvent;
 import com.velocitypowered.api.event.player.KickedFromServerEvent;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import com.velocitypowered.api.plugin.PluginContainer;
 import com.velocitypowered.api.util.GameProfile;
 import com.velocitypowered.proxy.event.VelocityEventManager;
@@ -130,6 +131,7 @@ public class EventManagerHook {
   }
 
   @SuppressWarnings("rawtypes")
+  @SuppressFBWarnings("ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD")
   public void reloadHandlers() throws IllegalAccessException {
     ListMultimap<Class<?>, ?> handlersMap = (ListMultimap<Class<?>, ?>) HANDLERS_BY_TYPE_FIELD.get(this.eventManager);
     List disabledHandlers = handlersMap.get(GameProfileRequestEvent.class);
